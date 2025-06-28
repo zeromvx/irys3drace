@@ -51,6 +51,7 @@ const pauseMenuElement = document.querySelector('.pause-menu');
 const scoreElement = document.querySelector('.score');
 const bestScoreElement = document.querySelector('.best-score');
 const startBtn = document.querySelector('.start-btn');
+const leaderboardBtn = document.querySelector('.leaderboard-btn');
 const resumeBtn = document.querySelector('.resume-btn');
 const quitBtn = document.querySelector('.quit-btn');
 const backToMenuBtn = document.querySelector('.back-to-menu-btn');
@@ -58,6 +59,7 @@ const selectCarBtns = document.querySelectorAll('.select-car-btn');
 const btnLeft = document.querySelector('.btn-left');
 const btnRight = document.querySelector('.btn-right');
 const btnUp = document.querySelector('.btn-up');
+const leaderboard = document.querySelector('.leaderboard');
 
 let obstacleTexture;
 let cloudTexture;
@@ -842,6 +844,12 @@ function animate() {
     renderer.render(scene, camera);
 }
 
+function showLeaderboard() {
+    
+    menuElement.style.display = 'none';
+    leaderboard.style.display = "block";
+}
+
 const keys = {
     ArrowLeft: false,
     ArrowRight: false,
@@ -854,6 +862,8 @@ function handleTouchStart(key) {
 function handleTouchEnd(key) {
     keys[key] = false;
 }
+
+leaderboardBtn.addEventListener("click", showLeaderboard)
 
 // Привязка событий
 btnLeft.addEventListener('touchstart', () => handleTouchStart('ArrowLeft'));
