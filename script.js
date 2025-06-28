@@ -48,13 +48,11 @@ modelLoader.load('./assets/coin/scene.gltf', (gltf) => {
 // DOM elements
 const menuElement = document.querySelector('.menu');
 const pauseMenuElement = document.querySelector('.pause-menu');
-const carSelectionElement = document.querySelector('.car-selection');
 const scoreElement = document.querySelector('.score');
 const bestScoreElement = document.querySelector('.best-score');
 const startBtn = document.querySelector('.start-btn');
 const resumeBtn = document.querySelector('.resume-btn');
 const quitBtn = document.querySelector('.quit-btn');
-const carSelectBtn = document.querySelector('.car-select-btn');
 const backToMenuBtn = document.querySelector('.back-to-menu-btn');
 const selectCarBtns = document.querySelectorAll('.select-car-btn');
 const btnLeft = document.querySelector('.btn-left');
@@ -70,6 +68,11 @@ let coinModelScene = null;
 const coinPool = [];
 let treePool = [];
 let treePrototype = null;
+
+const MUSIC = {
+    backgroundMusic: null,
+    coinSound: null
+}
 
 async function preloadAssets() {
     const textureLoader = new THREE.TextureLoader();
@@ -109,6 +112,9 @@ async function preloadAssets() {
 
     treePrototype = tree;
 
+    MUSIC.backgroundMusic = new Audio("assets/music/game_music.mp3");
+    MUSIC.coinSound = new Audio("assets/music/coin.mp3")
+    MUSIC.coinSound.volume = 0.2
     return {
         obstacleTex,
         cloudTex,
@@ -123,7 +129,6 @@ async function init() {
     cloudTexture = assets.cloudTex;
     bannerTextures = assets.bannerTexArr;
     coinModelScene = assets.coinModel;
-
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87CEEB);
 
@@ -154,8 +159,6 @@ async function init() {
     startBtn.addEventListener('click', startGame);
     resumeBtn.addEventListener('click', resumeGame);
     quitBtn.addEventListener('click', quitToMenu);
-    carSelectBtn.addEventListener('click', showCarSelection);
-    backToMenuBtn.addEventListener('click', hideCarSelection);
 
     selectCarBtns.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -270,6 +273,10 @@ function startGame() {
     obstacleFrequency = 0.08;
     scoreElement.textContent = `Score: ${score}`;
     
+    MUSIC.backgroundMusic.loop = true;
+    MUSIC.backgroundMusic.volume = 0.5;
+    MUSIC.backgroundMusic.play();
+
     clearRoadAndObstacles();
     createInitialRoad();
     createCar();
@@ -596,8 +603,13 @@ function checkCollisions() {
     
     const currentSegment = roadSegments.find(s => car.position.z >= s.start && car.position.z < s.end);
     if (currentSegment) {
-        const distanceFromCenter = Math.abs(car.position.x - currentSegment.x);
-        if (distanceFromCenter > roadWidth / 2) {
+        const dx = car.position.x - currentSegment.x;
+
+        
+        const leftLimit = -roadWidth / 2 - 2;   
+        const rightLimit = roadWidth / 2 + 1; 
+
+        if (dx < leftLimit || dx > rightLimit) {
             return true;
         }
     }
@@ -608,6 +620,9 @@ function checkCollisions() {
 function gameOver() {
     gameActive = false;
     
+    MUSIC.backgroundMusic.pause();
+    MUSIC.backgroundMusic.currentTime = 0;
+
     if (score > bestScore) {
         bestScore = score;
         localStorage.setItem('bestRacingScore', bestScore);
@@ -619,31 +634,26 @@ function gameOver() {
 
 function pauseGame() {
     paused = true;
+    MUSIC.backgroundMusic.pause();
     pauseMenuElement.style.display = 'block';
 }
 
 function resumeGame() {
     paused = false;
+    MUSIC.backgroundMusic.play();
     pauseMenuElement.style.display = 'none';
 }
 
 function quitToMenu() {
     paused = false;
+    MUSIC.backgroundMusic.currentTime = 0;
+    MUSIC.backgroundMusic.pause();
     gameActive = false;
     pauseMenuElement.style.display = 'none';
     menuElement.style.display = 'block';
     clearRoadAndObstacles();
 }
 
-function showCarSelection() {
-    menuElement.style.display = 'none';
-    carSelectionElement.style.display = 'block';
-}
-
-function hideCarSelection() {
-    carSelectionElement.style.display = 'none';
-    menuElement.style.display = 'block';
-}
 
 function onKeyDown(event) {
     if (!gameActive) return;
@@ -742,6 +752,7 @@ function animate() {
                 releaseCoin(coin.mesh);
                 score += 10;
                 scoreElement.textContent = `Score: ${Math.floor(score)}`;
+                MUSIC.coinSound.play();
                 return false;
             }
 
