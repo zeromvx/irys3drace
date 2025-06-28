@@ -87,13 +87,15 @@ button {
     user-select: none;
     outline: none;
     border: none;
+    
+    -webkit-tap-highlight-color: transparent;
 }
 
-.mobile-controls button:focus {
-    touch-action: none;
-    user-select: none;
-    outline: none;
-    border: none;
+.no-select {
+ -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none; /* Safari */
+  -ms-user-select: none; /* IE 10+ */
 }
 
 @media screen and (max-width: 960px) {
