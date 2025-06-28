@@ -29,15 +29,15 @@ let flameMixer = null;
 // Texture loader for obstacles, banners, and clouds
 const textureLoader = new THREE.TextureLoader();
 const modelLoader = new THREE.GLTFLoader();
-const obstacleTexture = textureLoader.load('./assets/images/irys.png');
-const bannerTextures = [
-    textureLoader.load('./assets/images/banner1.webp'),
-    textureLoader.load('./assets/images/banner2.webp'),
-    textureLoader.load('./assets/images/banner3.webp')
-];
-const cloudTexture = textureLoader.load('./assets/images/cloud.png');
+// const obstacleTexture = textureLoader.load('./assets/images/irys.png');
+// const bannerTextures = [
+//     textureLoader.load('./assets/images/banner1.webp'),
+//     textureLoader.load('./assets/images/banner2.webp'),
+//     textureLoader.load('./assets/images/banner3.webp')
+// ];
+// const cloudTexture = textureLoader.load('./assets/images/cloud.png');
 
-let coinModelScene = null;
+// let coinModelScene = null;
 
 modelLoader.load('./assets/coin/scene.gltf', (gltf) => {
     coinModelScene = gltf.scene;
@@ -61,10 +61,69 @@ const btnLeft = document.querySelector('.btn-left');
 const btnRight = document.querySelector('.btn-right');
 const btnUp = document.querySelector('.btn-up');
 
-// Initialize the game
-init();
+let obstacleTexture;
+let cloudTexture;
+let bannerTextures = [];
+let coinModelScene = null;
 
-function init() {
+// Object Pool for coins
+const coinPool = [];
+let treePool = [];
+let treePrototype = null;
+
+async function preloadAssets() {
+    const textureLoader = new THREE.TextureLoader();
+    const modelLoader = new THREE.GLTFLoader();
+
+    const loadTexture = (url) => new Promise((resolve, reject) =>
+        textureLoader.load(url, resolve, undefined, reject)
+    );
+    const loadModel = (url) => new Promise((resolve, reject) =>
+        modelLoader.load(url, resolve, undefined, reject)
+    );
+
+    const [obstacleTex, cloudTex, ...bannerTexArr] = await Promise.all([
+        loadTexture('./assets/images/irys.png'),
+        loadTexture('./assets/images/cloud.png'),
+        loadTexture('./assets/images/banner1.webp'),
+        loadTexture('./assets/images/banner2.webp'),
+        loadTexture('./assets/images/banner3.webp')
+    ]);
+
+    const coinModel = await loadModel('./assets/coin/scene.gltf');
+
+    // Tree prototype creation
+    const tree = new THREE.Group();
+    const scale = 1.0;
+    const trunkGeometry = new THREE.CylinderGeometry(0.5, 0.5, 3, 8);
+    const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+    const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+    trunk.position.y = 1.5;
+    tree.add(trunk);
+
+    const foliageGeometry = new THREE.SphereGeometry(2, 12, 12);
+    const foliageMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22 });
+    const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
+    foliage.position.y = 3.5;
+    tree.add(foliage);
+
+    treePrototype = tree;
+
+    return {
+        obstacleTex,
+        cloudTex,
+        bannerTexArr,
+        coinModel: coinModel.scene
+    };
+}
+
+async function init() {
+    const assets = await preloadAssets();
+    obstacleTexture = assets.obstacleTex;
+    cloudTexture = assets.cloudTex;
+    bannerTextures = assets.bannerTexArr;
+    coinModelScene = assets.coinModel;
+
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87CEEB);
 
@@ -85,20 +144,19 @@ function init() {
 
     bestScoreElement.textContent = `Best: ${bestScore}`;
 
-    // Initialize clouds
     for (let i = 0; i < 20; i++) {
         createCloud();
     }
 
     window.addEventListener('resize', onWindowResize);
     document.addEventListener('keydown', onKeyDown);
-    
+
     startBtn.addEventListener('click', startGame);
     resumeBtn.addEventListener('click', resumeGame);
     quitBtn.addEventListener('click', quitToMenu);
     carSelectBtn.addEventListener('click', showCarSelection);
     backToMenuBtn.addEventListener('click', hideCarSelection);
-    
+
     selectCarBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             currentCarModel = btn.parentElement.getAttribute('data-car');
@@ -109,15 +167,33 @@ function init() {
     animate();
 }
 
-function generateCoin(zBase) {
-     if (!coinModelScene) return;
+init();
 
-    const zPos = zBase + 10 + Math.random() * 10;
-    const xPos = (Math.random() - 0.5) * (roadWidth - 4);
+function getCoinFromPool() {
+    if (!coinModelScene) return null;
+
+    if (coinPool.length > 0) {
+        return coinPool.pop();
+    }
 
     const coin = coinModelScene.clone(true);
     coin.scale.set(0.2, 0.2, 0.2);
+    return coin;
+}
+
+function releaseCoin(coin) {
+    coinPool.push(coin);
+}
+
+function generateCoin(zBase) {
+    const zPos = zBase + 10 + Math.random() * 10;
+    const xPos = (Math.random() - 0.5) * (roadWidth - 4);
+
+    const coin = getCoinFromPool();
+    if (!coin) return;
+
     coin.position.set(xPos, 0.1, zPos);
+    coin.visible = true;
     scene.add(coin);
 
     coins.push({ mesh: coin, collected: false });
@@ -149,38 +225,36 @@ function createCloud() {
     });
 }
 
+function getTreeFromPool() {
+    if (treePool.length > 0) return treePool.pop();
+
+    if (!treePrototype) return null;
+
+    const treeClone = treePrototype.clone(true);
+    return treeClone;
+}
+
+function releaseTree(tree) {
+    treePool.push(tree);
+}
+
 function createTree(segment) {
-    const tree = new THREE.Group();
-    
-    // Randomize tree scale for variety
-    const scale = 0.8 + Math.random() * 0.4; // Scale between 0.8 and 1.2
-    
-    // Trunk
-    const trunkGeometry = new THREE.CylinderGeometry(0.5 * scale, 0.5 * scale, 3 * scale, 8);
-    const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
-    const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-    trunk.position.y = (1.5 * scale); // Adjust for scale
-    tree.add(trunk);
-    
-    // Foliage
-    const foliageGeometry = new THREE.SphereGeometry(2 * scale, 12, 12);
-    const foliageMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22 });
-    const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
-    foliage.position.y = (3.5 * scale); // Adjust for scale
-    tree.add(foliage);
-    
-    // Random position along grass, closer to road for density
-    const side = Math.random() < 0.5 ? -1 : 1; // Left or right side
-    const xOffset = roadWidth / 2 + 2 + Math.random() * (grassWidth / 2 - 10); // Closer to road edge
+    const tree = getTreeFromPool();
+    if (!tree) return;
+
+    const scale = 0.8 + Math.random() * 0.4;
+    tree.scale.set(scale, scale, scale);
+
+    const side = Math.random() < 0.5 ? -1 : 1;
+    const xOffset = roadWidth / 2 + 2 + Math.random() * (grassWidth / 2 - 10);
     tree.position.set(
         segment.x + side * xOffset,
         0,
         segment.z + Math.random() * segmentLength
     );
-    
-    // Random rotation for natural look
+
     tree.rotation.y = Math.random() * Math.PI * 2;
-    
+
     scene.add(tree);
     trees.push({
         mesh: tree,
@@ -441,12 +515,7 @@ function clearRoadAndObstacles() {
     
     trees.forEach(tree => {
         scene.remove(tree.mesh);
-        tree.mesh.traverse(child => {
-            if (child.isMesh) {
-                child.geometry.dispose();
-                child.material.dispose();
-            }
-        });
+        releaseTree(tree.mesh);
     });
 
     coins.forEach(coin => {
@@ -634,17 +703,26 @@ function animate() {
             const currentSpeed = isTurboActive ? carSpeed * turboSpeedMultiplier : carSpeed;
             
             car.position.z += currentSpeed;
-            
+            const baseTurnSpeed = 0.08;
+            const speedFactor = currentSpeed; // the faster, the more responsive
+            const adjustedTurnSpeed = baseTurnSpeed + speedFactor * 0.04;
+
             if (keys.ArrowRight) {
-                car.position.x -= carTurnSpeed;
-                car.rotation.y = Math.PI / 16;
+                car.position.x -= adjustedTurnSpeed;
+                car.rotation.y = Math.min(car.rotation.y + 0.02, Math.PI / 16);
             } else if (keys.ArrowLeft) {
-                car.position.x += carTurnSpeed;
-                car.rotation.y = -Math.PI / 16;
+                car.position.x += adjustedTurnSpeed;
+                car.rotation.y = Math.max(car.rotation.y - 0.02, -Math.PI / 16);
             } else {
-                car.rotation.y = 0;
+                // Smoothly return to center
+                if (car.rotation.y > 0.01) {
+                    car.rotation.y -= 0.02;
+                } else if (car.rotation.y < -0.01) {
+                    car.rotation.y += 0.02;
+                } else {
+                    car.rotation.y = 0;
+                }
             }
-            
             car.position.x = Math.max(-roadWidth, Math.min(roadWidth, car.position.x));
             
             camera.position.z = car.position.z - 15;
@@ -661,6 +739,7 @@ function animate() {
             if (carBox.intersectsBox(coinBox) && !coin.collected) {
                 coin.collected = true;
                 scene.remove(coin.mesh);
+                releaseCoin(coin.mesh);
                 score += 10;
                 scoreElement.textContent = `Score: ${Math.floor(score)}`;
                 return false;
@@ -668,6 +747,7 @@ function animate() {
 
             if (coin.mesh.position.z < car.position.z - 30) {
                 scene.remove(coin.mesh);
+                releaseCoin(coin.mesh);
                 return false;
             }
 
@@ -737,12 +817,7 @@ function animate() {
         trees = trees.filter(tree => {
             if (tree.z < car.position.z - 100) {
                 scene.remove(tree.mesh);
-                tree.mesh.traverse(child => {
-                    if (child.isMesh) {
-                        child.geometry.dispose();
-                        child.material.dispose();
-                    }
-                });
+                releaseTree(tree.mesh); // 👈
                 return false;
             }
             return true;
