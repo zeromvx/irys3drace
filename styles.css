@@ -91,6 +91,16 @@ button {
     -webkit-tap-highlight-color: transparent;
 }
 
+.btn-left::before {
+    content: "⟵";
+    user-select: none;
+}
+
+.btn-right::after {
+    content: "⟶";
+    user-select: none;
+}
+
 .no-select {
  -webkit-touch-callout: none;
   user-select: none;
