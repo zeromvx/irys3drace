@@ -5,6 +5,7 @@ let paused = false;
 let score = 0;
 let bestScore = localStorage.getItem('bestRacingScore') || 0;
 let roadSegments = [];
+let coins = [];
 let grassSegments = [];
 let roadWidth = 20;
 let grassWidth = 100;
@@ -35,6 +36,7 @@ const bannerTextures = [
     textureLoader.load('./assets/images/banner3.webp')
 ];
 const cloudTexture = textureLoader.load('./assets/images/cloud.png');
+const coinTexture = textureLoader.load('./assets/images/coin.png');
 
 // DOM elements
 const menuElement = document.querySelector('.menu');
@@ -98,6 +100,23 @@ function init() {
     });
 
     animate();
+}
+
+function generateCoin(zBase) {
+    const zPos = zBase + 10 + Math.random() * 10; // В пределах следующего сегмента (20м)
+    const xPos = (Math.random() - 0.5) * (roadWidth - 4);
+
+    const coinMaterial = new THREE.SpriteMaterial({
+        map: coinTexture,
+        transparent: true
+    });
+    const coin = new THREE.Sprite(coinMaterial);
+    coin.scale.set(2, 2, 1); // Размер монетки
+    coin.position.set(xPos, 2, zPos);
+
+    scene.add(coin);
+    
+    coins.push({ mesh: coin, collected: false });
 }
 
 function createCloud() {
@@ -299,6 +318,11 @@ function createGrassSegment(segment) {
     for (let i = 0; i < treeCount; i++) {
         createTree(segment);
     }
+
+    const coinCount = 1;
+    for (let i = 0; i < coinCount; i++) {
+        generateCoin(segment.z);
+    }
 }
 
 function createCar() {
@@ -331,6 +355,7 @@ function createCar() {
 
             car.add(carModel);
             scene.add(car);       
+
         },
         (xhr) => {
             console.log((xhr.loaded / xhr.total * 100) + '% loaded');
@@ -419,7 +444,13 @@ function clearRoadAndObstacles() {
             }
         });
     });
-    
+
+    coins.forEach(coin => {
+        scene.remove(coin.mesh);
+        if (coin.mesh.material) coin.mesh.material.dispose();
+    });
+
+    coins = [];
     obstacles = [];
     banners = [];
     clouds = [];
@@ -481,6 +512,7 @@ function checkCollisions() {
         carCenter,
         new THREE.Vector3(2.7, 1.0, 6.2)
     );
+
     
     for (const obstacle of obstacles) {
         const obstacleBox = new THREE.Box3().setFromObject(obstacle.mesh);
@@ -565,10 +597,9 @@ function animate() {
     const delta = clock.getDelta();
     if (flameMixer) flameMixer.update(delta);
     const elapsedTime = clock.getElapsedTime();
-    
+
     if (gameActive && !paused) {
-        score += delta * 10;
-        scoreElement.textContent = `Score: ${Math.floor(score)}`;
+        carSpeed = 0.5 + Math.min(2.0, car.position.z * 0.0001);
         
         obstacleFrequency = Math.min(0.1, obstacleFrequency + delta * 0.0002);
         
@@ -618,6 +649,26 @@ function animate() {
         }
         
         updateRoad();
+
+       coins = coins.filter(coin => {
+            const carBox = new THREE.Box3().setFromObject(car);
+            const coinBox = new THREE.Box3().setFromObject(coin.mesh);
+
+            if (carBox.intersectsBox(coinBox) && !coin.collected) {
+                coin.collected = true;
+                scene.remove(coin.mesh);
+                score += 10;
+                scoreElement.textContent = `Score: ${Math.floor(score)}`;
+                return false;
+            }
+
+            if (coin.mesh.position.z < car.position.z - 30) {
+                scene.remove(coin.mesh);
+                return false;
+            }
+
+            return true;
+        });
         
         // Maintain 10 obstacles by repositioning
         obstacles = obstacles.filter(obstacle => {
