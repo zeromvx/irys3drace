@@ -1,4 +1,4 @@
- body { margin: 0; overflow: hidden; }
+body { margin: 0; overflow: hidden;  }
 canvas { display: block; }
 .menu,
 .pause-menu,
@@ -72,6 +72,7 @@ button {
     z-index: 101;
     gap: 20px;
     display: none;
+    user-select: none;
 }
 .mobile-controls button {
     width: 60px;
@@ -83,6 +84,16 @@ button {
     border-radius: 50%;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
     touch-action: none;
+    user-select: none;
+    outline: none;
+    border: none;
+}
+
+.mobile-controls button:focus {
+    touch-action: none;
+    user-select: none;
+    outline: none;
+    border: none;
 }
 
 @media screen and (max-width: 960px) {

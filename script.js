@@ -780,12 +780,14 @@ btnUp.addEventListener('touchstart', () => handleTouchStart('ArrowUp'));
 btnUp.addEventListener('touchend', () => handleTouchEnd('ArrowUp'));
 
 document.addEventListener('keydown', (event) => {
+    event.preventDefault()
     if (event.key in keys) {
         keys[event.key] = true;
     }
 });
 
 document.addEventListener('keyup', (event) => {
+    event.preventDefault()
     if (event.key in keys) {
         keys[event.key] = false;
     }
