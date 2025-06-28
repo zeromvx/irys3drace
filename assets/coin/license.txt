@@ -1,0 +1,11 @@
+Model Information:
+* title:	Coin
+* source:	https://sketchfab.com/3d-models/coin-7d9b49c9ede348eab0a4ccaf46b3a44f
+* author:	Monster (https://sketchfab.com/wearemonsters)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Coin" (https://sketchfab.com/3d-models/coin-7d9b49c9ede348eab0a4ccaf46b3a44f) by Monster (https://sketchfab.com/wearemonsters) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

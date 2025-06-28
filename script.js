@@ -36,7 +36,14 @@ const bannerTextures = [
     textureLoader.load('./assets/images/banner3.webp')
 ];
 const cloudTexture = textureLoader.load('./assets/images/cloud.png');
-const coinTexture = textureLoader.load('./assets/images/coin.png');
+
+let coinModelScene = null;
+
+modelLoader.load('./assets/coin/scene.gltf', (gltf) => {
+    coinModelScene = gltf.scene;
+}, undefined, (err) => {
+    console.error('Error loading coin model:', err);
+});
 
 // DOM elements
 const menuElement = document.querySelector('.menu');
@@ -103,19 +110,16 @@ function init() {
 }
 
 function generateCoin(zBase) {
-    const zPos = zBase + 10 + Math.random() * 10; // В пределах следующего сегмента (20м)
+     if (!coinModelScene) return;
+
+    const zPos = zBase + 10 + Math.random() * 10;
     const xPos = (Math.random() - 0.5) * (roadWidth - 4);
 
-    const coinMaterial = new THREE.SpriteMaterial({
-        map: coinTexture,
-        transparent: true
-    });
-    const coin = new THREE.Sprite(coinMaterial);
-    coin.scale.set(2, 2, 1); // Размер монетки
-    coin.position.set(xPos, 2, zPos);
-
+    const coin = coinModelScene.clone(true);
+    coin.scale.set(0.2, 0.2, 0.2);
+    coin.position.set(xPos, 0.1, zPos);
     scene.add(coin);
-    
+
     coins.push({ mesh: coin, collected: false });
 }
 
@@ -650,7 +654,7 @@ function animate() {
         
         updateRoad();
 
-       coins = coins.filter(coin => {
+        coins = coins.filter(coin => {
             const carBox = new THREE.Box3().setFromObject(car);
             const coinBox = new THREE.Box3().setFromObject(coin.mesh);
 
